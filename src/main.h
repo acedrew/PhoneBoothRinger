@@ -5,3 +5,4 @@ void startRinger();
 void toggleRinger();
 void ringerOn();
 void ringerOff();
+void hookLifted();

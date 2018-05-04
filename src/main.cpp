@@ -23,13 +23,17 @@ int duty_100 = 0;
 int ringTimerOverflow = 0;
 
 void setup() {
+  // setup pins
   pinMode(HOOK_PIN, INPUT_PULLUP);
   pinMode(MOTION_PIN, INPUT_PULLUP);
   pinMode(PB5, INPUT_PULLDOWN);
   pinMode(RINGER_PIN, PWM);
   pinMode(RINGER_PIN_COMP, PWM);
   pinMode(PB8, OUTPUT);
-
+  // setup GPIO interrupts
+  attachInterrupt(MOTION_PIN, motionDetected, FALLING);
+  attachInterrupt(HOOK_PIN, hookLifted, RISING);
+  // setup timers
   HardwareTimer timer1 = HardwareTimer(1);
   HardwareTimer timer2 = HardwareTimer(2);
   timer1.pause();
@@ -43,7 +47,6 @@ void setup() {
   timer2.setCompare(2, RING_LENGTH * 2);
   timer2.attachInterrupt(2, ringerOff);
   duty_100 = timer1.setPeriod(25000);
-  attachInterrupt(MOTION_PIN, motionDetected, FALLING);
   timer_dev *t = TIMER1; //refers t to Timer 8 memory location, how to read back?
   timer_reg_map r = t->regs;
   bitSet(r.adv->CCER,0); //this should enable complimentary outputs
@@ -51,11 +54,12 @@ void setup() {
   bitSet(r.adv->CCER,7);
   bitSet(r.adv->CCER,6);
   bitSet(r.bas->CR1,5);
-  ringerOff();
   timer1.refresh();
   timer2.refresh();
   timer1.resume();
   timer2.resume();
+  // Make sure we start with the ringer disabled
+  ringerOff();
 }
 
 void loop() {
@@ -82,13 +86,9 @@ void loop() {
   // delay(10000);
 }
 void motionDetected() {
-    digitalWrite(PB8, HIGH);
-    startRinger();
-  // if(!digitalRead(HOOK_PIN)){
-  //   if(digitalRead(MOTION_PIN)) {
-  //     startRinger();
-  //   }
-  // }
+  if(!digitalRead(HOOK_PIN)){
+      startRinger();
+  }
 }
 
 void startRinger() {
@@ -100,6 +100,13 @@ void startRinger() {
     ringCount = 0;
     ringerOn();
   }
+}
+
+void stopRinger() {
+  ringerOff();
+  ringTimer = millis();
+  ringerEnabled = false;
+  ringCount = RING_COUNT + 1;
 }
 
 void ringerOn() {
@@ -119,4 +126,8 @@ void ringerOff() {
 
 void updateState() {
   hookState = digitalRead(HOOK_PIN);
+}
+
+void hookLifted() {
+  stopRinger();
 }
